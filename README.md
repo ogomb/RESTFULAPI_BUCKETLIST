@@ -11,6 +11,7 @@ A user can be able to login.
 TECHNOLOGIES USED 
 
 Flask mocroframework
+
 Postgres database
 
 HOW TO INSTALL THE APPLICATION
