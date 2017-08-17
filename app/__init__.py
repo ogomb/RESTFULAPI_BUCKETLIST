@@ -176,6 +176,24 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+    @app.route('/bucketlists/<int:id>', methods=['GET'])
+    def bucketlist_get_with_id(id, **kwargs):
+        """ get a bucketlist with a specific id."""
+        header = request.headers.get('Authorization')
+        token = header.split(" ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                if not bucketlist:
+                    abort(404)
+                elif request.method == 'GET':
+                    response = {
+                        'name' : bucketlist.name,
+                        'username': bucketlist.username
+                    }
+                    return make_response(jsonify(response)), 200
+
             
                 
     
