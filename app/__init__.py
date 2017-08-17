@@ -125,6 +125,30 @@ def create_app(config_name):
         else:
             abort(404)
 
+    @app.route('/bucketlists/<int:id>', methods=['DELETE'])
+    def bucketlist_delete(id, **kwargs):
+        """ delete a bucketlists."""
+        header = request.headers.get('Authorization')
+        token = header.split(" ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                if not bucketlist:
+                    abort(404)
+                if request.method == "DELETE":
+                    bucketlist.delete()
+                    return {
+                        "message": "The bucketlist is deleted"
+                        }, 200
+
+            else:
+                message = username
+                response = {
+                    'message': message
+                }
+                return make_response(jsonify(response)), 401
+
             
                 
     
