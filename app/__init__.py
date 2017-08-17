@@ -149,6 +149,33 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+    @app.route('/bucketlists/<int:id>', methods=['PUT'])
+    def bucketlist_put(id, **kwargs):
+        """ update a bucketlists."""
+        header = request.headers.get('Authorization')
+        token = header.split(" ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                if not bucketlist:
+                    abort(404)        
+                elif request.method == "PUT":
+                    name = str(request.data.get('name', ''))
+                    bucketlist.name = name
+                    bucketlist.save()
+                    response = {
+                        'name': bucketlist.name,
+                        'username': bucketlist.username
+                    }
+                    return make_response(jsonify(response)), 200
+            else:
+                message = username
+                response = {
+                    'message': message
+                }
+                return make_response(jsonify(response)), 401
+
             
                 
     
