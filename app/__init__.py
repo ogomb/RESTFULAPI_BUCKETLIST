@@ -201,6 +201,27 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+    @app.route('/bucketlists/<int:id>/item', methods=['POST'])
+    def create_items(id, **kwargs):
+        """get and create items for a particular bucketlist."""
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                if request.method == "POST":
+                    itemname = str(request.data.get('itemname', ''))                   
+                    if itemname:
+                        item = Item(item_name=itemname, bucket_name=id)
+                        item.save()
+                        response = {
+                            'id': item.id,
+                            'name': item.item_name,
+                            'bucket_name': item.bucket_name
+                        }                       
+                        return make_response(jsonify(response)),201
+
             
                 
     
