@@ -228,6 +228,37 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+
+    @app.route('/bucketlists/<int:id>/item', methods=['GET'])
+    def get_items(id, **kwargs):
+        """get and create items for a particular bucketlist."""
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                if request.method == "GET":
+                   
+                       
+                    items = Item.query.filter_by(bucket_name=id).paginate(1,3,False).items
+                    results = []
+                    for item in items:
+                        obj = {
+                            'id': item.id,
+                            'name': item.item_name,
+                            'bucket_name': item.bucket_name
+                        }
+                        results.append(obj)
+                    print len(results)
+                    return make_response(jsonify({'result':results})), 200
+            else:
+                message = username
+                response = {
+                    'message':message
+                }
+                return make_response(jsonify(response)), 401
+
     
 
             
