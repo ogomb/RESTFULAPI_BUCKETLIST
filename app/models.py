@@ -1,24 +1,66 @@
+import os
+from datetime import datetime, timedelta
 from app import db
+import jwt
+
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
+    """A class that models a User object."""
     __tablename__ = 'User'
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
-    email = db.Column(db.String(120), unique= True)
-    password = db.Column(db.String(80))
-    bucketlists = db.relationship('Bucketlist', backref='author', lazy='dynamic')
+    email = db.Column(db.String(120), unique=True)
+    password = db.Column(db.String(255))
+    bucketlists = db.relationship('Bucketlist', backref='User', lazy='dynamic')
 
     def __init__(self, username, email, password):
+        """constructor that initializes a user class."""
         self.username = username
         self.email = email
-        self.password = password
+        self.password = generate_password_hash(password, method='sha256')
+
+    def is_password_valid(self, password):
+        """check if the password inputed is valid."""
+        return check_password_hash(self.password, password)
 
     def save(self):
-         db.session.add(self)
-         db.session.commit()
+        """save a user object."""
+        db.session.add(self)
+        db.session.commit()
+
+    def token_generation(self, id):
+        """generating a token for the user."""
+        try:
+            load = {
+                'exp': datetime.utcnow() + timedelta(minutes=40),
+                'user': id,
+                'iat': datetime.utcnow()
+                }
+            token = jwt.encode(
+                load,
+                os.getenv('SECRET'),
+                algorithm='HS256'
+            )
+            return token
+        except Exception as e:
+            return str(e)
+    @staticmethod
+    def token_decode(token):
+        """decode a token to see if it is valid."""
+        try:
+            load = jwt.decode(token, os.getenv('SECRET'))
+            return load['user']
+        except jwt.ExpiredSignatureError:
+            return 'The token has expired. Login again'
+        except jwt.InvalidTokenError:
+            return 'Invalid token. Please register and login'
+
+
 
     def __repr__(self):
+        """to string representation of the user class."""
         return '<User %r>' % self.username
 
 
