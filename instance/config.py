@@ -17,18 +17,10 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:postgres@localhost/test_db'
     DEBUG = True
 
-class StagingConfig(Config):
-    """Configurations for Staging."""
-    DEBUG = True
 
-class ProductionConfig(Config):
-    """Configurations for Production."""
-    DEBUG = False
-    TESTING = False
 
 app_config = {
     'development': DevelopmentConfig,
-    'testing': TestingConfig,
-    'staging': StagingConfig,
-    'production': ProductionConfig,
+    'testing': TestingConfig
+   
 }
