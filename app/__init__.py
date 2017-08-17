@@ -67,6 +67,27 @@ def create_app(config_name):
                 'message': str(e)
             }
             return make_response(jsonify(response)), 500
+
+
+    @app.route('/bucketlists/', methods=['POST'])
+    def create_bucketlists():
+        """create a bucketlist """
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                if request.method == "POST":
+                    name = str(request.data.get('name', ''))
+                    if name:
+                        bucketlist = Bucketlist(name=name, username=username)
+                        bucketlist.save()
+                        response = jsonify({
+                            'id': bucketlist.id,
+                            'name': bucketlist.name,
+                            'user_id': bucketlist.username
+                        })                       
+                        return make_response(response),201
                 
     
 
