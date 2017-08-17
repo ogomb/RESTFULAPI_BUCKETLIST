@@ -253,6 +253,21 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "GET":
+                q = request.args.get('q','')
+                    if q:
+                        firstitem = Item.query.filter_by(bucket_name=id,item_name=q).first()
+                        if firstitem:
+                            result = {}
+                            results=[]
+                            result['id']= firstitem.id
+                            result['name']= firstitem.item_name
+                            result['bucket_name']= firstitem.bucket_name
+                            print result 
+                            results.append(result)
+                            print len(results)
+                            return make_response(jsonify({'result':results})), 200
+                        if not firstitem:
+                            return jsonify({'message': 'item not found'})
                    
                        
                     items = Item.query.filter_by(bucket_name=id).paginate(1,3,False).items
