@@ -44,27 +44,29 @@ def create_app(config_name):
                 'message': 'User exists'
             }
             return make_response(jsonify(response)), 202
-    @app.route('/login/', methods=['POST', 'GET'])
+    @app.route('/auth/login', methods=['POST', 'GET'])
     def login():
-        if request.method == 'POST':
-            data = request.get_json()
-            email = str(request.data.get('email', ''))
-            password = str(request.data.get('password',''))
-
-            if not data:
-                response = jsonify({'message': 'no info provided'})
-                response.status_code = 401
-                return response
-
-            user = User.query.filter_by(email= email).first()
-            if not user:
-                return jsonify({'message': 'user does not exist'}), 401
-            if password != user.password:
-                return jsonify({'message': 'password does not match'}), 401
-            
-            response= jsonify({'message': 'You are logged in'})
-            response.status_code = 200
-            return response
+        """Login route."""
+        try:
+            user = User.query.filter_by(username=request.data['username']).first()
+            if user and user.is_password_valid(request.data['password']):
+                token = user.token_generation(user.username)
+                if token:
+                    response = {
+                        'message': 'Logged In',
+                        'token': token.decode()
+                    }
+                    return make_response(jsonify(response)), 200
+            else:
+                response = {
+                    'message' : 'credentials are invalid'
+                }
+                return make_response(jsonify(response)), 401
+        except Exception as e:
+            response = {
+                'message': str(e)
+            }
+            return make_response(jsonify(response)), 500
                 
     
 
