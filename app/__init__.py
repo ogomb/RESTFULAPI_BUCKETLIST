@@ -95,6 +95,36 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+    @app.route('/bucketlists/', methods=['GET'])
+    def get_bucketlists():
+        """Get all the buckelists."""
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                if request.method == "GET":
+                   
+                    bucketlists = Bucketlist.query.filter_by(username=username)
+                    results = []
+                    for bucketlist in bucketlists:
+                        obj = {
+                            'id': bucketlist.id,
+                            'name': bucketlist.name,
+                            'user_name': bucketlist.username
+                        }
+                        results.append(obj)
+                    return make_response(jsonify(results)), 200
+
+            else:
+                message = username
+                response = {
+                    'message':message
+                }
+                return make_response(jsonify(response)), 401
+        else:
+            abort(404)
+
             
                 
     
