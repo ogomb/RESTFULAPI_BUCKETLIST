@@ -71,27 +71,31 @@ class Bucketlist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True)
-    user_name = db.Column(db.String(80), db.ForeignKey('User.username'))
+    username = db.Column(db.String(80), db.ForeignKey(User.username))
     items = db.relationship('Item', backref='Bucketlist', lazy='dynamic')
 
-    def __init__(self, name,user_name):
-        """initialize with name."""
+    def __init__(self, name, username):
+        """initialize bucketlist object."""
         self.name = name
-        self.user_name=user_name
+        self.username = username
 
     def save(self):
+        """save a bucketlist object."""
         db.session.add(self)
         db.session.commit()
 
     @staticmethod
-    def get_all():
-        return Bucketlist.query.all()
+    def get_all(username):
+        """get all the bucketlist object."""
+        return Bucketlist.query.filter_by(user_name=username)
 
     def delete(self):
+        """delete a bucketlist object."""
         db.session.delete(self)
         db.session.commit()
 
     def __repr__(self):
+        """to string representation of the bucketlist object."""
         return "<Bucketlist: {}>".format(self.name)
 
 class Item(db.Model):
