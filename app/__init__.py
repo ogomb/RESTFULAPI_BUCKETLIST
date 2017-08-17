@@ -259,6 +259,44 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
+    @app.route('/bucketlists/<int:id>/item/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
+    def itemedits(id, item_id, **kwargs):
+        """get, delete, edit items in a bucketlist."""
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+        if token:
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                items = Item.query.filter_by(id=item_id).first()
+                if not items:
+                    abort(404)
+                if request.method == "DELETE":
+                    items.delete()
+                    return {
+                        "message": "The item is deleted"
+                        }, 200
+                elif request.method == "PUT":
+                    itemname = str(request.data.get('itemname', ''))
+                    items.item_name = itemname
+                    items.save()
+                    response = {
+                        'name': items.item_name,
+                        'bucket_name': id
+                    }
+                    return make_response(jsonify(response)), 200
+                else:
+                    response = {
+                        'name': items.item_name,
+                        'bucket_name': id
+                    }
+                    return make_response(jsonify(response)), 200
+            else:
+                message = username
+                response = {
+                    'message': message
+                }
+                return make_response(jsonify(response)), 401
+
     
 
             
