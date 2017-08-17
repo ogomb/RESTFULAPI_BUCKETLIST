@@ -99,17 +99,31 @@ class Bucketlist(db.Model):
         return "<Bucketlist: {}>".format(self.name)
 
 class Item(db.Model):
+    """item object."""
     __tablename__ = 'Item'
-    
-
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(80), unique=True)
-    bucket_name = db.Column(db.String(80), db.ForeignKey('bucketlists.name',onupdate="CASCADE"))
+    bucket_name = db.Column(db.Integer, db.ForeignKey('bucketlists.id', onupdate="CASCADE"))
 
     def __init__(self, item_name, bucket_name):
+        """initialize an item object."""
         self.item_name = item_name
         self.bucket_name = bucket_name
+    def __getitem__(self, name):
+        return self.id
         
 
-    def __repr__(self):
-        return '<Item %r>' % self.item_name
+    def save(self):
+        """dave the item object to the database."""
+        db.session.add(self)
+        db.session.commit()
+
+    @staticmethod
+    def get_all(bucketname):
+        """get all the items belonging to the bucketlist."""
+        return Item.query.filter_by(bucket_name=bucketname)
+
+    def delete(self):
+        """delete an item from a bucketlist."""
+        db.session.delete(self)
+        db.session.commit()
