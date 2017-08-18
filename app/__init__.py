@@ -253,7 +253,11 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "GET":
-                q = request.args.get('q','')
+
+
+        
+
+                    q = request.args.get('q','')
                     if q:
                         firstitem = Item.query.filter_by(bucket_name=id,item_name=q).first()
                         if firstitem:
@@ -326,10 +330,5 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
 
-    
-
-            
-                
-    
 
     return app
