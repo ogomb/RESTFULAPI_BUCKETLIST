@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/ogomb/RESTFULAPI_BUCKETLIST/badge.svg?branch=master)](https://coveralls.io/github/ogomb/RESTFULAPI_BUCKETLIST?branch=master)
+
 # RESTFULAPI_BUCKETLIST
 
 INTRODUCTION
