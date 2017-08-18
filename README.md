@@ -39,7 +39,7 @@ create postgres database
 
 `createdb YOURDATABASENAME`
 
-`createdb ATESTDB`
+`createdb test_apis`
 
 Run the test using the following code `python test_apis.py`
 
