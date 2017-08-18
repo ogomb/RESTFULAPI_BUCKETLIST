@@ -6,7 +6,10 @@ python:
   - "2.7"
 
 # command to install dependencies
-
+services:
+  - postgresql
+before_script:
+  - psql -c "CREATE DATABASE test_api;" -U postgres
 
 install:
  
