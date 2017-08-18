@@ -15,15 +15,11 @@ install:
  
   - pip install -r requirements.txt
   - pip install coveralls
-env:
-  - FLASK_APP=run.py
-  - SECRET=this_is_andela
-  - APP_SETTINGS=development
-  - DATABASE_URL=postgresql://localhost/rest_api
+
 # command to run tests
 
 script: 
-    
+    - source .env
     - nosetests --with-coverage
 
 after_success: coveralls
