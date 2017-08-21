@@ -27,7 +27,7 @@ A user can be able to login.
 
 5. clone the repository `git clone https://github.com/ogomb/RESTFULAPI_BUCKETLIST.git` on the root folder.
 
-6. export this variables source .env
+6. export this variables `source .env`
       
 7. create postgres database 
 
