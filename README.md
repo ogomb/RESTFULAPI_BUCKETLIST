@@ -39,6 +39,8 @@ A user can be able to login.
 
 9. Run the application using the following code `python run.py`
 
+**API ENDPOINTS**
+
 Endpoint  | Public access
 ---------------------------|--------------
 POST /auth/register | TRUE
