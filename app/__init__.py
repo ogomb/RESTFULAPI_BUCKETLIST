@@ -2,6 +2,7 @@ import os
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from flask import session, request
+from werkzeug.security import generate_password_hash
 from flask import jsonify, abort, make_response
 from instance.config import app_config
 
@@ -67,7 +68,6 @@ def create_app(config_name):
                 'message': str(e)
             }
             return make_response(jsonify(response)), 500
-        
     @app.route('/auth/logout', methods=['GET'])
     def logout():
         """Logout url """
@@ -82,8 +82,8 @@ def create_app(config_name):
             return make_response(jsonify(response)), 200 
         if not token:
             response = {'message': 'you were not logged in'}
-            return make_response(jsonify(response)), 401 
-        
+            return make_response(jsonify(response)), 401  
+            
     @app.route('/auth/reset_password', methods=['POST'])
     def reset_password():
         """reset password url """
@@ -106,7 +106,7 @@ def create_app(config_name):
             
         if not token:
             response = {'message': 'Errors occured'}
-            return make_response(jsonify(response)), 401      
+            return make_response(jsonify(response)), 401   
 
 
     @app.route('/bucketlists/', methods=['POST'])
