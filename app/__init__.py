@@ -67,6 +67,22 @@ def create_app(config_name):
                 'message': str(e)
             }
             return make_response(jsonify(response)), 500
+        
+    @app.route('/auth/logout', methods=['GET'])
+    def logout():
+        """Logout url """
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+        
+        if token:
+            print token
+            User.blacklisttoken(token)
+            User.expired_tokens
+            response = {'message': 'you are logged out'} 
+            return make_response(jsonify(response)), 200 
+        if not token:
+            response = {'message': 'you were not logged in'}
+            return make_response(jsonify(response)), 401      
 
 
     @app.route('/bucketlists/', methods=['POST'])
