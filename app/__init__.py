@@ -82,6 +82,30 @@ def create_app(config_name):
             return make_response(jsonify(response)), 200 
         if not token:
             response = {'message': 'you were not logged in'}
+            return make_response(jsonify(response)), 401 
+        
+    @app.route('/auth/reset_password', methods=['POST'])
+    def reset_password():
+        """reset password url """
+        header = request.headers.get('Authorization')
+        token = header.split("Bearer ")[1]
+        
+        if token:
+            password = str(request.data.get('changepassword', ''))
+            if password:
+                username = User.token_decode(token)
+                hashedpass = generate_password_hash(password, 'sha256')
+                User.query.filter_by(username=username).update({'password': hashedpass})
+                db.session.commit() 
+                response = {'message': 'the password has changed'}
+                return make_response(jsonify(response)), 200
+
+            else:
+                response = {'message': 'password has not changed'}
+                return make_response(jsonify(response))
+            
+        if not token:
+            response = {'message': 'Errors occured'}
             return make_response(jsonify(response)), 401      
 
 
