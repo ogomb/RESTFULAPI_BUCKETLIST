@@ -5,21 +5,29 @@ import jwt
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 class User(db.Model):
     """A class that models a User object."""
     __tablename__ = 'User'
+    
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
     email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(255))
     bucketlists = db.relationship('Bucketlist', backref='User', lazy='dynamic')
+    expired_tokens = []
 
     def __init__(self, username, email, password):
         """constructor that initializes a user class."""
         self.username = username
         self.email = email
         self.password = generate_password_hash(password, method='sha256')
+        
+    
+    
+
+       
 
     def is_password_valid(self, password):
         """check if the password inputed is valid."""
@@ -29,6 +37,28 @@ class User(db.Model):
         """save a user object."""
         db.session.add(self)
         db.session.commit()
+
+    @staticmethod
+    def get_all(username):
+        """get all the bucketlist object."""
+        return User.query.filter_by(username=username)
+
+    @staticmethod
+    def blacklisttoken(token):
+        """add token to a blacklisted tokens"""
+        User.expired_tokens.append(token)
+        
+
+    @staticmethod
+    def checktTokenInList(token):
+        """check if token is in the expired token lists"""
+        for item in User.expired_tokens:
+            if item == token:
+                return True
+            else:
+                return False
+
+
 
     def token_generation(self, id):
         """generating a token for the user."""
@@ -49,7 +79,11 @@ class User(db.Model):
     @staticmethod
     def token_decode(token):
         """decode a token to see if it is valid."""
+        
         try:
+            
+            if  User.checktTokenInList(token):
+                 return 'Invalid token. Please login'
             load = jwt.decode(token, os.getenv('SECRET'))
             return load['user']
         except jwt.ExpiredSignatureError:
@@ -127,3 +161,8 @@ class Item(db.Model):
         """delete an item from a bucketlist."""
         db.session.delete(self)
         db.session.commit()
+
+
+
+
+    
