@@ -1,4 +1,5 @@
 import os
+import re
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from flask import session, request
@@ -23,35 +24,59 @@ def create_app(config_name):
     @app.route('/auth/register', methods=['POST', 'GET'])
     def register():
         """ register route."""
-        user = User.query.filter_by(username=request.data['username']).first()
-        if not user:
-            try:
-                data = request.data
-                email = data['email']
-                password = data['password']
-                username = data['username']
-                user = User(email=email, password=password, username=username)
-                user.save()
+        email = str(request.data['email']).strip()
+        password = str(request.data['password']).strip()
+        username = str(request.data['username']).strip()
+        print username
 
-                response = {'message': 'Registered'}
-                return make_response(jsonify(response)), 201
-            except Exception as e:
-                response = {
-                    'message': str(e)
-                }
-                return make_response(jsonify(response)), 401
+        match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)
+        if email == "" or password =="" or username == "":
+            response = {"message": "You can not submit null values!"}
+            return make_response(jsonify(response)), 201
+        elif len(username) < 3:
+            response = {"message": "username must be more than 8 characters"}
+            return make_response(jsonify(response)), 201
+        elif len(password) < 3:
+            response = {"message": "password must be more than 8 characters"}
+            return make_response(jsonify(response)), 201
+
+        elif set('[~!@#$%^&*()_+{}":;\']+$/').intersection(username):
+            response = {'message': 'username can not contain special characters'}
+            return make_response(jsonify(response)), 201
+        elif match == None:
+            response = {'message': 'email has a bad format'}
+            return make_response(jsonify(response)), 201
+
         else:
-            response = {
-                'message': 'User exists'
-            }
-            return make_response(jsonify(response)), 202
+            user = User.query.filter_by(email=request.data['email']).first()
+            if not user:
+                try:
+                    data = request.data
+                    email = data['email']
+                    password = data['password']
+                    username = data['username']
+                    user = User(email=email, password=password, username=username)
+                    user.save()
+
+                    response = {'message': 'Registered'}
+                    return make_response(jsonify(response)), 201
+                except Exception as e:
+                    response = {
+                        'message': str(e)
+                    }
+                    return make_response(jsonify(response)), 401
+            else:
+                response = {
+                    'message': 'User exists'
+                }
+                return make_response(jsonify(response)), 202
     @app.route('/auth/login', methods=['POST', 'GET'])
     def login():
         """Login route."""
         try:
             user = User.query.filter_by(username=request.data['username']).first()
             if user and user.is_password_valid(request.data['password']):
-                token = user.token_generation(user.username)
+                token = user.token_generation(user.id)
                 if token:
                     response = {
                         'message': 'Logged In',
@@ -60,7 +85,7 @@ def create_app(config_name):
                     return make_response(jsonify(response)), 200
             else:
                 response = {
-                    'message' : 'credentials are invalid'
+                    'message' : 'username or password is incorrect'
                 }
                 return make_response(jsonify(response)), 401
         except Exception as e:
@@ -73,40 +98,44 @@ def create_app(config_name):
         """Logout url """
         header = request.headers.get('Authorization')
         token = header.split("Bearer ")[1]
-        
         if token:
-            print token
-            User.blacklisttoken(token)
-            User.expired_tokens
-            response = {'message': 'you are logged out'} 
-            return make_response(jsonify(response)), 200 
+            token1 = token[-8:]
+            User.blacklisttoken(token1)
+            print  User.expired_tokens
+            response = {'message': 'you are logged out'}
+            return make_response(jsonify(response)), 200
         if not token:
             response = {'message': 'you were not logged in'}
-            return make_response(jsonify(response)), 401  
-            
+            return make_response(jsonify(response)), 401
     @app.route('/auth/reset_password', methods=['POST'])
     def reset_password():
         """reset password url """
         header = request.headers.get('Authorization')
         token = header.split("Bearer ")[1]
-        
         if token:
-            password = str(request.data.get('changepassword', ''))
-            if password:
-                username = User.token_decode(token)
-                hashedpass = generate_password_hash(password, 'sha256')
-                User.query.filter_by(username=username).update({'password': hashedpass})
-                db.session.commit() 
-                response = {'message': 'the password has changed'}
-                return make_response(jsonify(response)), 200
+            username = User.token_decode(token)
+            if not isinstance(username, str):
+                if request.method == "POST":
+                    password = str(request.data.get('changepassword', ''))
+                    if password:
+                        hashedpass = generate_password_hash(password, 'sha256')
+                        User.query.filter_by(id=username).update({'password': hashedpass})
+                        db.session.commit()
+                        response = {'message': 'the password has changed'}
+                        return make_response(jsonify(response)), 200
 
+                    else:
+                        response = {'message': 'password has not changed'}
+                        return make_response(jsonify(response))
             else:
-                response = {'message': 'password has not changed'}
-                return make_response(jsonify(response))
-            
-        if not token:
-            response = {'message': 'Errors occured'}
-            return make_response(jsonify(response)), 401   
+                message = username
+                response = {
+                    'message':message
+                }
+                return make_response(jsonify(response)), 401
+        else:
+            response = {'message': 'No token provided'}
+            return make_response(jsonify(response)), 401
 
 
     @app.route('/bucketlists/', methods=['POST'])
@@ -120,14 +149,19 @@ def create_app(config_name):
                 if request.method == "POST":
                     name = str(request.data.get('name', ''))
                     if name:
-                        bucketlist = Bucketlist(name=name, username=username)
-                        bucketlist.save()
-                        response = jsonify({
-                            'id': bucketlist.id,
-                            'name': bucketlist.name,
-                            'user_id': bucketlist.username
-                        })                       
-                        return make_response(response),201
+                        bucket = Bucketlist.query.filter_by(name=name, username=username).first()
+                        if bucket != None:
+                            response = {'message': 'bucketlist with that name exists'}
+                            return make_response(jsonify(response)), 201
+                        else:
+                            bucketlist = Bucketlist(name=name, username=username)
+                            bucketlist.save()
+                            response = jsonify({
+                                'id': bucketlist.id,
+                                'name': bucketlist.name,
+                                'user_id': bucketlist.username
+                            })
+                            return make_response(response), 201
             else:
                 message = username
                 response = {
@@ -144,9 +178,9 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "GET":
-                    q = request.args.get('q','')
+                    q = request.args.get('q', '')
                     if q:
-                        firstitem = Bucketlist.query.filter_by(username=username, name=q).first()
+                        firstitem = Bucketlist.query.filter_by(id=username, name=q).first()
                         print firstitem
                         if firstitem:
                             result = {}
@@ -165,7 +199,7 @@ def create_app(config_name):
                         obj = {
                             'id': bucketlist.id,
                             'name': bucketlist.name,
-                            'user_name': bucketlist.username
+                            'user_id': bucketlist.username
                         }
                         results.append(obj)
                     return make_response(jsonify(results)), 200
@@ -213,7 +247,7 @@ def create_app(config_name):
             if not isinstance(username, str):
                 bucketlist = Bucketlist.query.filter_by(id=id).first()
                 if not bucketlist:
-                    abort(404)        
+                    abort(404)
                 elif request.method == "PUT":
                     name = str(request.data.get('name', ''))
                     bucketlist.name = name
@@ -237,6 +271,7 @@ def create_app(config_name):
         token = header.split(" ")[1]
         if token:
             username = User.token_decode(token)
+            print username
             if not isinstance(username, str):
                 bucketlist = Bucketlist.query.filter_by(id=id).first()
                 if not bucketlist:
@@ -265,16 +300,22 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "POST":
-                    itemname = str(request.data.get('itemname', ''))                   
+                    itemname = str(request.data.get('itemname', ''))
                     if itemname:
-                        item = Item(item_name=itemname, bucket_name=id)
-                        item.save()
-                        response = {
-                            'id': item.id,
-                            'name': item.item_name,
-                            'bucket_name': item.bucket_name
-                        }                       
-                        return make_response(jsonify(response)),201
+                        item = Item.query.filter_by(item_name=itemname, bucket_id=id).first()
+                        if item != None:
+                            response = {'message':'a simmilar item name exists'}
+                            return make_response(jsonify(response)), 201
+                        else:
+
+                            item = Item(item_name=itemname, bucket_id=id)
+                            item.save()
+                            response = {
+                                'id': item.id,
+                                'name': item.item_name,
+                                'bucket_id': item.bucket_id
+                            }
+                            return make_response(jsonify(response)), 201
             else:
                 message = username
                 response = {
@@ -288,42 +329,33 @@ def create_app(config_name):
         """get and create items for a particular bucketlist."""
         header = request.headers.get('Authorization')
         token = header.split("Bearer ")[1]
-
         if token:
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "GET":
 
-
-        
-
-                    q = request.args.get('q','')
+                    q = request.args.get('q', '')
                     if q:
-                        firstitem = Item.query.filter_by(bucket_name=id,item_name=q).first()
+                        firstitem = Item.query.filter_by(bucket_id=id, item_name=q).first()
                         if firstitem:
                             result = {}
-                            results=[]
-                            result['id']= firstitem.id
-                            result['name']= firstitem.item_name
-                            result['bucket_name']= firstitem.bucket_name
-                            print result 
+                            results = []
+                            result['id'] = firstitem.id
+                            result['name'] = firstitem.item_name
+                            result['bucket_id'] = firstitem.bucket_id
                             results.append(result)
-                            print len(results)
                             return make_response(jsonify({'result':results})), 200
                         if not firstitem:
                             return jsonify({'message': 'item not found'})
-                   
-                       
-                    items = Item.query.filter_by(bucket_name=id).paginate(1,3,False).items
+                    items = Item.query.filter_by(bucket_id=id).paginate(1, 3, False).items
                     results = []
                     for item in items:
                         obj = {
                             'id': item.id,
                             'name': item.item_name,
-                            'bucket_name': item.bucket_name
+                            'bucket_id': item.bucket_id
                         }
                         results.append(obj)
-                    print len(results)
                     return make_response(jsonify({'result':results})), 200
             else:
                 message = username
@@ -354,13 +386,13 @@ def create_app(config_name):
                     items.save()
                     response = {
                         'name': items.item_name,
-                        'bucket_name': id
+                        'bucket_id': id
                     }
                     return make_response(jsonify(response)), 200
                 else:
                     response = {
                         'name': items.item_name,
-                        'bucket_name': id
+                        'bucket_id': id
                     }
                     return make_response(jsonify(response)), 200
             else:
