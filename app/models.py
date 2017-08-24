@@ -16,7 +16,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(255))
     bucketlists = db.relationship('Bucketlist', backref='User', lazy='dynamic')
-    expired_tokens = []
+    expired_tokens = set()
 
     def __init__(self, username, email, password):
         """constructor that initializes a user class."""
@@ -46,7 +46,7 @@ class User(db.Model):
     @staticmethod
     def blacklisttoken(token):
         """add token to a blacklisted tokens"""
-        User.expired_tokens.append(token)
+        User.expired_tokens.add(token)
         
 
     @staticmethod
@@ -81,11 +81,12 @@ class User(db.Model):
         """decode a token to see if it is valid."""
         
         try:
-            
-            if  User.checktTokenInList(token):
+            mytoken = token[-8:]
+            if  User.checktTokenInList(mytoken):
                  return 'Invalid token. Please login'
-            load = jwt.decode(token, os.getenv('SECRET'))
-            return load['user']
+            else:
+                load = jwt.decode(token, os.getenv('SECRET'))
+                return load['user']
         except jwt.ExpiredSignatureError:
             return 'The token has expired. Login again'
         except jwt.InvalidTokenError:
@@ -104,8 +105,8 @@ class Bucketlist(db.Model):
     __tablename__ = 'bucketlists'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True)
-    username = db.Column(db.String(80), db.ForeignKey(User.username))
+    name = db.Column(db.String(80))
+    username = db.Column(db.Integer, db.ForeignKey(User.id))
     items = db.relationship('Item', backref='Bucketlist', lazy='dynamic')
 
     def __init__(self, name, username):
@@ -136,13 +137,13 @@ class Item(db.Model):
     """item object."""
     __tablename__ = 'Item'
     id = db.Column(db.Integer, primary_key=True)
-    item_name = db.Column(db.String(80), unique=True)
-    bucket_name = db.Column(db.Integer, db.ForeignKey('bucketlists.id', onupdate="CASCADE"))
+    item_name = db.Column(db.String(80))
+    bucket_id = db.Column(db.Integer, db.ForeignKey('bucketlists.id', onupdate="CASCADE"))
 
-    def __init__(self, item_name, bucket_name):
+    def __init__(self, item_name, bucket_id):
         """initialize an item object."""
         self.item_name = item_name
-        self.bucket_name = bucket_name
+        self.bucket_id= bucket_id
     def __getitem__(self, name):
         return self.id
         
@@ -155,12 +156,17 @@ class Item(db.Model):
     @staticmethod
     def get_all(bucketname):
         """get all the items belonging to the bucketlist."""
-        return Item.query.filter_by(bucket_name=bucketname)
+        return Item.query.filter_by(bucket_id=bucketname)
 
     def delete(self):
         """delete an item from a bucketlist."""
         db.session.delete(self)
         db.session.commit()
+
+
+
+
+    
 
 
 
