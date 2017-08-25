@@ -116,7 +116,7 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "POST":
-                    password = str(request.data.get('changepassword', ''))
+                    password = str(request.data.get('changepassword', '')).strip()
                     if password:
                         hashedpass = generate_password_hash(password, 'sha256')
                         User.query.filter_by(id=username).update({'password': hashedpass})
@@ -130,7 +130,7 @@ def create_app(config_name):
             else:
                 message = username
                 response = {
-                    'message':message
+                    'message':'problem with token please login again'
                 }
                 return make_response(jsonify(response)), 401
         else:
@@ -211,7 +211,10 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
         else:
-            abort(404)
+            response = {
+                    'message':"token not provided!"
+                }
+            return make_response(jsonify(response)), 401
 
     @app.route('/bucketlists/<int:id>', methods=['DELETE'])
     def bucketlist_delete(id, **kwargs):
@@ -221,9 +224,11 @@ def create_app(config_name):
         if token:
             username = User.token_decode(token)
             if not isinstance(username, str):
-                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                bucketlist = Bucketlist.query.filter_by(id=id,username=username).first()
                 if not bucketlist:
-                    abort(404)
+                    return {
+                        "message": "The bucketlist could not be deleted"
+                        }, 200
                 if request.method == "DELETE":
                     bucketlist.delete()
                     return {
@@ -273,9 +278,11 @@ def create_app(config_name):
             username = User.token_decode(token)
             print username
             if not isinstance(username, str):
-                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                bucketlist = Bucketlist.query.filter_by(id=id,username=username).first()
                 if not bucketlist:
-                    abort(404)
+                    return {
+                        "message": "The bucketlist does not exist"
+                        }, 200
                 elif request.method == 'GET':
                     response = {
                         'name' : bucketlist.name,
@@ -347,6 +354,9 @@ def create_app(config_name):
                             return make_response(jsonify({'result':results})), 200
                         if not firstitem:
                             return jsonify({'message': 'item not found'})
+                    limit = request.args.get('limit')
+                    page =  request.args.get('page')
+                             
                     items = Item.query.filter_by(bucket_id=id).paginate(1, 3, False).items
                     results = []
                     for item in items:
