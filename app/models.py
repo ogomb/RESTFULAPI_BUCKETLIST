@@ -138,12 +138,14 @@ class Item(db.Model):
     __tablename__ = 'Item'
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(80))
+    done = db.Column(db.Boolean, default=False)
     bucket_id = db.Column(db.Integer, db.ForeignKey('bucketlists.id', onupdate="CASCADE"))
 
-    def __init__(self, item_name, bucket_id):
+    def __init__(self, item_name, bucket_id, done):
         """initialize an item object."""
         self.item_name = item_name
         self.bucket_id= bucket_id
+        self.done = done
     def __getitem__(self, name):
         return self.id
         
@@ -162,11 +164,6 @@ class Item(db.Model):
         """delete an item from a bucketlist."""
         db.session.delete(self)
         db.session.commit()
-
-
-
-
-    
 
 
 
