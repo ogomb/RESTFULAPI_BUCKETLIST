@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+
 from flasgger import Swagger
 
 from app import create_app 
@@ -73,6 +73,23 @@ def logoutuser():
       - name: Authorization
         in: header
         description: an authorization header
+        required: true
+        type: string 
+    """
+@app.route('/auth/reset_password', methods=['POST'])
+def resetpassword():
+    """Example endpoint of loging in a user
+    This is using docstrings for specifications.
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        description: an authorization header
+        required: true
+        type: string
+      - name: changepassword
+        in: formData
+        description: new password
         required: true
         type: string 
     """
@@ -172,6 +189,11 @@ def createItem():
         type: string
         required: true
         description: name of item
+      - name: done
+        in: formData
+        type: Boolean
+        required: true
+        description: is item done?
     """
 @app.route('/bucketlists/<id>/item', methods=['GET'])
 def getallitems():
@@ -236,6 +258,10 @@ def edititem():
       - name: itemname
         in: formData
         type: string
+        required: true
+      - name: done
+        in: formData
+        type: Boolean
         required: true
     """
 @app.route('/bucketlists/<id>/item/<item_id>', methods=['DELETE'])
