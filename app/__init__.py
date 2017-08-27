@@ -4,7 +4,7 @@ from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from flask import session, request
 from werkzeug.security import generate_password_hash
-from flask import jsonify, abort, make_response
+from flask import jsonify, make_response
 from instance.config import app_config
 
 
@@ -30,7 +30,7 @@ def create_app(config_name):
         print username
 
         match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)
-        if email == "" or password =="" or username == "":
+        if email == "" or password == "" or username == "":
             response = {"message": "You can not submit null values!"}
             return make_response(jsonify(response)), 201
         elif len(username) < 3:
@@ -116,7 +116,7 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "POST":
-                    password = str(request.data.get('changepassword', ''))
+                    password = str(request.data.get('changepassword', '')).strip()
                     if password:
                         hashedpass = generate_password_hash(password, 'sha256')
                         User.query.filter_by(id=username).update({'password': hashedpass})
@@ -125,12 +125,12 @@ def create_app(config_name):
                         return make_response(jsonify(response)), 200
 
                     else:
-                        response = {'message': 'null values are not accepted'}
+                        response = {'message': 'password has not changed'}
                         return make_response(jsonify(response))
             else:
                 message = username
                 response = {
-                    'message':message
+                    'message':'problem with token please login again'
                 }
                 return make_response(jsonify(response)), 401
         else:
@@ -180,29 +180,52 @@ def create_app(config_name):
                 if request.method == "GET":
                     q = request.args.get('q', '')
                     if q:
-                        firstitem = Bucketlist.query.filter_by(id=username, name=q).first()
-                        print firstitem
+                        firstitem = Bucketlist.query.filter(Bucketlist.name.like( "%"+q+"%")).filter(Bucketlist.username==username).all()
                         if firstitem:
-                            result = {}
                             results = []
-                            result['id'] = firstitem.id
-                            result['name'] = firstitem.name
-                            result['bucket_name'] = firstitem.username
-                            results.append(result)
-                            print len(results)
-                            return make_response(jsonify({'result':results})), 200
+                            for fitem in firstitem:
+                                obj = {
+                                    'id': fitem.id,
+                                    'name': fitem.name,
+                                    'user_id': fitem.username
+                                }
+                                results.append(obj)
+                            return make_response(jsonify(results)), 200
                         if not firstitem:
                             return jsonify({'message': 'Bucketlist not found'})
-                    bucketlists = Bucketlist.query.filter_by(username=username)
+                    if request.args.get('page'):
+                        page =  int(request.args.get('page'))
+                    else:
+                        page = 1
+                    limit = request.args.get('limit')
+                    if limit and int(limit) < 8:
+                        limit = int(request.args.get('limit'))
+                    else:
+                        limit = 4
+                    bucketlists = Bucketlist.query.filter_by(username=username).paginate(page, limit, False)
+                    if not bucketlists:
+                        response = {'message':'no items available'}
+                        return make_response(jsonify(response)), 404
+                    if bucketlists.has_next:
+                        next_page = '?page=' + str(
+                            page + 1) + '&limit=' + str(limit)
+                    else:
+                        next_page = ""
+                    if bucketlists.has_prev:
+                        previous_page = '?page=' + str(
+                            page - 1) + '&limit=' + str(limit)
+                    else:
+                        previous_page = ""
+                    pagin_buckets = bucketlists.items
                     results = []
-                    for bucketlist in bucketlists:
+                    for bucketlist in pagin_buckets:
                         obj = {
                             'id': bucketlist.id,
                             'name': bucketlist.name,
                             'user_id': bucketlist.username
                         }
                         results.append(obj)
-                    return make_response(jsonify(results)), 200
+                    return make_response(jsonify({'next_url': next_page, 'previous_page': previous_page,'result':results})), 200
 
             else:
                 message = username
@@ -211,7 +234,8 @@ def create_app(config_name):
                 }
                 return make_response(jsonify(response)), 401
         else:
-            abort(404)
+            response = {'message':"token not provided!"}
+            return make_response(jsonify(response)), 401
 
     @app.route('/bucketlists/<int:id>', methods=['DELETE'])
     def bucketlist_delete(id, **kwargs):
@@ -221,9 +245,11 @@ def create_app(config_name):
         if token:
             username = User.token_decode(token)
             if not isinstance(username, str):
-                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                bucketlist = Bucketlist.query.filter_by(id=id, username=username).first()
                 if not bucketlist:
-                    abort(404)
+                    return {
+                        "message": "The bucketlist could not be deleted"
+                        }, 200
                 if request.method == "DELETE":
                     bucketlist.delete()
                     return {
@@ -231,9 +257,8 @@ def create_app(config_name):
                         }, 200
 
             else:
-                message = username
                 response = {
-                    'message': message
+                    'message': "problem with token login again"
                 }
                 return make_response(jsonify(response)), 401
 
@@ -245,9 +270,11 @@ def create_app(config_name):
         if token:
             username = User.token_decode(token)
             if not isinstance(username, str):
-                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                bucketlist = Bucketlist.query.filter_by(id=id, username=username).first()
                 if not bucketlist:
-                    abort(404)
+                    return {
+                        "message": "The bucketlist could not be edited"
+                        }, 200
                 elif request.method == "PUT":
                     name = str(request.data.get('name', ''))
                     bucketlist.name = name
@@ -258,9 +285,8 @@ def create_app(config_name):
                     }
                     return make_response(jsonify(response)), 200
             else:
-                message = username
                 response = {
-                    'message': message
+                    'message': "problem with token login again"
                 }
                 return make_response(jsonify(response)), 401
 
@@ -273,9 +299,11 @@ def create_app(config_name):
             username = User.token_decode(token)
             print username
             if not isinstance(username, str):
-                bucketlist = Bucketlist.query.filter_by(id=id).first()
+                bucketlist = Bucketlist.query.filter_by(id=id,username=username).first()
                 if not bucketlist:
-                    abort(404)
+                    return {
+                        "message": "The bucketlist does not exist"
+                        }, 200
                 elif request.method == 'GET':
                     response = {
                         'name' : bucketlist.name,
@@ -300,26 +328,45 @@ def create_app(config_name):
             username = User.token_decode(token)
             if not isinstance(username, str):
                 if request.method == "POST":
-                    itemname = str(request.data.get('itemname', ''))
-                    if itemname:
-                        item = Item.query.filter_by(item_name=itemname, bucket_id=id).first()
-                        if item != None:
-                            response = {'message':'a simmilar item name exists'}
-                            return make_response(jsonify(response)), 201
-                        else:
+                    itemname = str(request.data.get('itemname', '')).strip()
+                    completed = request.data.get('done', '')
+                    if  set('[~!@#$%^&*()_+{}":;\']+$').intersection(itemname):
+                        response = {'message':'item name has a bad format'}
+                        return make_response(jsonify(response)), 401
+                    elif itemname == "":
+                        response = {'message':'item name has a bad format'}
+                        return make_response(jsonify(response)), 401
 
-                            item = Item(item_name=itemname, bucket_id=id)
-                            item.save()
+                    elif itemname:
+                        try:
+                    
+                            item = Item.query.filter_by(item_name=itemname, bucket_id=id).first()
+                            if item != None:
+                                response = {'message':'a simmilar item name exists'}
+                                return make_response(jsonify(response)), 201
+                            else:
+
+                                item = Item(item_name=itemname, bucket_id=id ,done=completed)
+                                item.save()
+                                response = {
+                                    'id': item.id,
+                                    'name': item.item_name,
+                                    'bucket_id': item.bucket_id,
+                                    'done': item.done
+                                }
+                                return make_response(jsonify(response)), 201
+                        except Exception as e:
                             response = {
-                                'id': item.id,
-                                'name': item.item_name,
-                                'bucket_id': item.bucket_id
+                                'message': "bucket list id provided or item id is incorrect"
                             }
-                            return make_response(jsonify(response)), 201
+                            return make_response(jsonify(response)), 500
+                    else:
+                        response = {'message':'the item name has a bad format'}
+                        return make_response(jsonify(response)), 401
+
             else:
-                message = username
                 response = {
-                    'message': message
+                    'message': 'problem with token login again'
                 }
                 return make_response(jsonify(response)), 401
 
@@ -336,31 +383,60 @@ def create_app(config_name):
 
                     q = request.args.get('q', '')
                     if q:
-                        firstitem = Item.query.filter_by(bucket_id=id, item_name=q).first()
+                        firstitem = Item.query.filter_by(bucket_id=id).filter(Item.item_name.like("%"+q+"%")).all()
                         if firstitem:
-                            result = {}
                             results = []
-                            result['id'] = firstitem.id
-                            result['name'] = firstitem.item_name
-                            result['bucket_id'] = firstitem.bucket_id
-                            results.append(result)
+                            for item in firstitem:
+                                obj = {
+                                    'id': item.id,
+                                    'name': item.item_name,
+                                    'bucket_id': item.bucket_id,
+                                    'done' : item.done
+                                }   
+                                results.append(obj)
                             return make_response(jsonify({'result':results})), 200
                         if not firstitem:
                             return jsonify({'message': 'item not found'})
-                    items = Item.query.filter_by(bucket_id=id).paginate(1, 3, False).items
+                    
+                    if request.args.get('page'):
+                        page =  int(request.args.get('page'))
+                    else:
+                        page = 1
+                    limit = request.args.get('limit')
+                    if limit and int(limit) < 8:
+                        limit = int(request.args.get('limit'))
+                    else:
+                        limit = 1
+                             
+                    items = Item.query.filter_by(bucket_id=id).paginate(page, limit, False)
+                    if not items:
+                        response = {'message':'no items available'}
+                        return make_response(jsonify(response)), 404
+                    if items.has_next:
+                        next_page = '?page=' + str(
+                            page + 1) + '&limit=' + str(limit)
+                    else:
+                        next_page = ""
+                    if items.has_prev:
+                        previous_page =  '?page=' + str(
+                            page - 1) + '&limit=' + str(limit)
+                    else:
+                        previous_page = ""
+                    pagin_items= items.items
                     results = []
-                    for item in items:
+                    for item in pagin_items:
                         obj = {
                             'id': item.id,
                             'name': item.item_name,
-                            'bucket_id': item.bucket_id
+                            'bucket_id': item.bucket_id,
+                            'done': item.done
                         }
                         results.append(obj)
-                    return make_response(jsonify({'result':results})), 200
+                    return make_response(jsonify({'next_url': next_page, 'previous_page': previous_page,'result':results})), 200
             else:
                 message = username
                 response = {
-                    'message':message
+                    'message':'problem with token login again'
                 }
                 return make_response(jsonify(response)), 401
 
@@ -372,33 +448,56 @@ def create_app(config_name):
         if token:
             username = User.token_decode(token)
             if not isinstance(username, str):
-                items = Item.query.filter_by(id=item_id).first()
-                if not items:
-                    abort(404)
-                if request.method == "DELETE":
-                    items.delete()
-                    return {
-                        "message": "The item is deleted"
-                        }, 200
-                elif request.method == "PUT":
-                    itemname = str(request.data.get('itemname', ''))
-                    items.item_name = itemname
-                    items.save()
+                try:
+                    items = Item.query.filter_by(id=item_id, bucket_id=id).first()
+                    if not items:
+                        return {
+                            "message": "The item is not available"
+                            }, 200
+                    if request.method == "DELETE":
+                        items.delete()
+                        return {
+                            "message": "The item is deleted"
+                            }, 200
+                    elif request.method == "PUT":
+                        itemname = str(request.data.get('itemname', '')).strip()
+                        done = request.data.get('done','').strip()
+                        if itemname == "" or done == "":
+                            response = {
+                                'message':'item name and done can not be blank'
+                                }
+                            return make_response(jsonify(response)), 401
+                        if set('[~!@#$%^&*()_+{}":;\']+$').intersection(itemname):
+                            response = {
+                                'message':'item name has bad format'
+                                }
+                            return make_response(jsonify(response)), 401
+
+                        items.item_name = itemname
+                        items.done = done
+                        items.save()
+                        response = {
+                            'name': items.item_name,
+                            'bucket_id': id,
+                            'done': items.done
+                        }
+                        return make_response(jsonify(response)), 200
+                    else:
+                        response = {
+                            'name': items.item_name,
+                            'bucket_id': id,
+                            'done': items.done
+                        }
+                        return make_response(jsonify(response)), 200
+                except Exception as e:
                     response = {
-                        'name': items.item_name,
-                        'bucket_id': id
-                    }
-                    return make_response(jsonify(response)), 200
-                else:
-                    response = {
-                        'name': items.item_name,
-                        'bucket_id': id
-                    }
-                    return make_response(jsonify(response)), 200
+                        'message': "problem with bucket id or item id"
+                        }
+                    return make_response(jsonify(response)), 401
+
             else:
-                message = username
                 response = {
-                    'message': message
+                    'message': "problem with token login again"
                 }
                 return make_response(jsonify(response)), 401
 
