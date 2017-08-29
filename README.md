@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/ogomb/RESTFULAPI_BUCKETLIST.svg?branch=master)](https://travis-ci.org/ogomb/RESTFULAPI_BUCKETLIST) [![Coverage Status](https://coveralls.io/repos/github/ogomb/RESTFULAPI_BUCKETLIST/badge.svg?branch=master)](https://coveralls.io/github/ogomb/RESTFULAPI_BUCKETLIST?branch=master)
-
+[![Build Status](https://travis-ci.org/ogomb/RESTFULAPI_BUCKETLIST.svg?branch=master)](https://travis-ci.org/ogomb/RESTFULAPI_BUCKETLIST)
 # RESTFULAPI_BUCKETLIST
 **INTRODUCTION**
 This application provides RESTFUL endpoints to the bucketlist application.
