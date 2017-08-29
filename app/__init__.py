@@ -20,6 +20,11 @@ def create_app(config_name):
     app.config.from_pyfile('config.py')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
+    
+    @app.errorhandler(404)
+    def page_not_found(error):
+        response = {'message': 'Oops the page can not be found!!'}
+        return make_response(jsonify(response)), 404
 
     @app.route('/auth/register', methods=['POST', 'GET'])
     def register():
