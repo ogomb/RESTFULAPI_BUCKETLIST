@@ -329,7 +329,7 @@ def create_app(config_name):
             if not isinstance(username, str):
                 if request.method == "POST":
                     itemname = str(request.data.get('itemname', '')).strip()
-                    completed = request.data.get('done', '')
+                    completed = request.data.get('completed', '')
                     if  set('[~!@#$%^&*()_+{}":;\']+$').intersection(itemname):
                         response = {'message':'item name has a bad format'}
                         return make_response(jsonify(response)), 401
