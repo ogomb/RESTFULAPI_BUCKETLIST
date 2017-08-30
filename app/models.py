@@ -16,6 +16,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(255))
     bucketlists = db.relationship('Bucketlist', backref='User', lazy='dynamic')
+    items = db.relationship('Item', backref='User', lazy='dynamic')
     expired_tokens = set()
 
     def __init__(self, username, email, password):
@@ -139,13 +140,15 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(80))
     done = db.Column(db.Boolean, default=False)
-    bucket_id = db.Column(db.Integer, db.ForeignKey('bucketlists.id', onupdate="CASCADE"))
+    bucket_id = db.Column(db.Integer, db.ForeignKey('bucketlists.id'))
+    username = db.Column(db.Integer, db.ForeignKey(User.id))
 
-    def __init__(self, item_name, bucket_id, done):
+    def __init__(self, item_name, bucket_id, done,username):
         """initialize an item object."""
         self.item_name = item_name
         self.bucket_id= bucket_id
         self.done = done
+        self.username = username
     def __getitem__(self, name):
         return self.id
         
@@ -164,8 +167,3 @@ class Item(db.Model):
         """delete an item from a bucketlist."""
         db.session.delete(self)
         db.session.commit()
-
-
-
-
-    
