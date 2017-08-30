@@ -1,6 +1,9 @@
 import unittest
 import json
-from app import create_app, db
+from app import app, db
+from instance.config import app_config
+
+app.config.from_object(app_config.get('testing'))
 
 class APITest(unittest.TestCase):
     """
@@ -8,13 +11,12 @@ class APITest(unittest.TestCase):
     def setUp(self):
         """
         Function to set up the test. """
-        self.app = create_app(config_name="testing")
-        self.client = self.app.test_client
+        self.client = app.test_client
 
         self.user = {'username':'lewoh', 'email':'kenyan@gmail.com', 'password':'letmein'}
         self.bucketlist = {'name':'travel to taiwan'}
         self.item = {'itemname': 'buy clothes'}
-        with self.app.app_context():
+        with app.app_context():
             db.session.close()
             db.drop_all()
             db.create_all()
@@ -134,6 +136,11 @@ class APITest(unittest.TestCase):
 
         self.assertIn('the password has changed', str(response.data))
         self.assertEqual(response.status_code, 200)
+        rest3 = self.client().post(
+            '/auth/reset_password',
+            data=self.item)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
     def test_user_notoken_changepassword(self):
         """Test user change password."""
         self.user_registration()
@@ -156,7 +163,7 @@ class APITest(unittest.TestCase):
             headers=dict(Authorization="Bearer "+token),
             data={'changepassword':None})
 
-        self.assertIn('password has not changed', str(response.data))
+        self.assertIn('the password needs to be more than 8 characters', str(response.data))
 
     def test_duplicate_bucket_list(self):
         """Test the creation of a bucketlist."""
@@ -164,14 +171,14 @@ class APITest(unittest.TestCase):
         logged = self.login_the_user()
         token = json.loads(logged.data.decode())['token']
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
         self.assertEqual(response.status_code, 201)
         self.assertIn('travel to taiwan', str(response.data))
 
         response2 = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
         self.assertEqual(response2.status_code, 201)
@@ -185,7 +192,7 @@ class APITest(unittest.TestCase):
         logged = self.login_the_user()
         token = json.loads(logged.data.decode())['token']
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
         self.assertEqual(response.status_code, 201)
@@ -195,18 +202,23 @@ class APITest(unittest.TestCase):
             headers=dict(Authorization="Bearer "+token),)
         self.assertEqual(res.status_code, 200)
         #self.assertIn('travel to taiwan', str(res.data))
+        rest3 = self.client().get(
+            '/bucketlists/',
+            data=self.item)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
     def test_querry_available_bucketlist(self):
         """Test the querry of the available bucketlist for a user."""
         self.user_registration()
         logged = self.login_the_user()
         token = json.loads(logged.data.decode())['token']
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
         self.assertEqual(response.status_code, 201)
         resp = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"travel to hawaii"})
         self.assertEqual(resp.status_code, 201)
@@ -227,7 +239,7 @@ class APITest(unittest.TestCase):
         logged = self.login_the_user()
         token = json.loads(logged.data.decode())['token']
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
         self.assertEqual(response.status_code, 201)
@@ -245,7 +257,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data=self.bucketlist)
 
@@ -262,6 +274,12 @@ class APITest(unittest.TestCase):
             headers=dict(Authorization="Bearer "+token))
         self.assertEqual(rest.status_code, 200)
         self.assertIn('The bucketlist does not exist', str(rest.data))
+
+        rest3 = self.client().get(
+            '/bucketlists/{}'.format(results['id']),
+            data=self.item)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
     def test_edit_bucket(self):
         """Test editing the contents of a bucketlist."""
         self.user_registration()
@@ -269,7 +287,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+ token),
             data={'name':'travel to vietnam'})
         self.assertEqual(response.status_code, 201)
@@ -282,6 +300,14 @@ class APITest(unittest.TestCase):
                 "name": "travel to vietnam and learn of vietnamese war"
             })
         self.assertEqual(response.status_code, 200)
+        responsa = self.client().put(
+            '/bucketlists/{}'.format(results['id']),
+            headers=dict(Authorization="Bearer "+ token),
+            data={
+                "name": "%"
+            })
+        self.assertEqual(responsa.status_code, 401)
+        self.assertIn("bucketlist with special characters is disallowed" ,str(responsa.data))
         response2 = self.client().put(
             '/bucketlists/{}'.format(results['id']),
             headers=dict(Authorization="Bearer "+"9"),
@@ -290,10 +316,19 @@ class APITest(unittest.TestCase):
             )
         self.assertEqual(response2.status_code, 401)
         self.assertIn( 'problem with token login again',str(response2.data))
+
+        rest3 = self.client().put(
+            '/bucketlists/{}'.format(results['id']),
+            data=self.bucketlist)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
+
         results = self.client().get(
             '/bucketlists/{}'.format(results['id']),
             headers=dict(Authorization="Bearer "+token))
         self.assertIn('travel to vietnam and learn of vietnamese war', str(results.data))
+
+        
 
     def test_delete_bucket(self):
         """Test deleting a bucketlist."""
@@ -302,7 +337,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"go to new york"})
         self.assertEqual(response.status_code, 201)
@@ -328,6 +363,12 @@ class APITest(unittest.TestCase):
             headers=dict(Authorization="Bearer "+'1'))
         self.assertEqual(resty.status_code, 401)
         self.assertIn('problem with token login again', str(resty.data))
+
+        rest3 = self.client().post(
+            '/bucketlists/{}/item'.format(results['id']),
+            data=self.item)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
     
     def test_create_item(self):
         """Test creating an item for a bucketlist."""
@@ -336,7 +377,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"travel to hong kong"})
         self.assertEqual(response.status_code, 201)
@@ -359,23 +400,30 @@ class APITest(unittest.TestCase):
         res2 = self.client().post(
             '/bucketlists/{}/item'.format(results['id']),
             headers=dict(Authorization="Bearer "+token),
-            data={'itemname':"yeah", "done":False})
+            data={'itemname':"yeahs", "done":False})
         self.assertEqual(res2.status_code, 201)
         self.assertIn('yeah', str(res2.data))
+
+        rest2 = self.client().post(
+            '/bucketlists/{}/item'.format(results['id']),
+            headers=dict(Authorization="Bearer "+token),
+            data={'itemname':"yeah", "done":False})
+        self.assertEqual(rest2.status_code, 401)
+        self.assertIn('item name needs to be more descriptive', str(rest2.data))
 
         resty = self.client().post(
             '/bucketlists/{}/item'.format(results['id']),
             headers=dict(Authorization="Bearer "+token),
-            data={'itemname':"yeah", "done":False})
+            data={'itemname':"yeahs", "done":False})
         self.assertEqual(resty.status_code, 201)
         self.assertIn('a simmilar item name exists', str(resty.data))
 
         resty1 = self.client().post(
             '/bucketlists/{}/item'.format(2),
             headers=dict(Authorization="Bearer "+token),
-            data={'itemname':"yeah", "done":False})
-        self.assertEqual(resty1.status_code, 500)
-        self.assertIn('bucket list id provided or item id is incorrect', str(resty1.data))
+            data={'itemname':"yeahr", "done":False})
+        self.assertEqual(resty1.status_code, 401)
+        self.assertIn('You do not have such bucketlist', str(resty1.data))
 
         res3 = self.client().post(
             '/bucketlists/{}/item'.format(results['id']),
@@ -383,6 +431,12 @@ class APITest(unittest.TestCase):
             data=self.item)
         self.assertEqual(res3.status_code, 401)
         self.assertIn('problem with token login again', str(res3.data))
+
+        rest3 = self.client().post(
+            '/bucketlists/{}/item'.format(results['id']),
+            data=self.item)
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
     
 
     def test_get_items(self):
@@ -392,7 +446,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"travel to hong kong"})
         self.assertEqual(response.status_code, 201)
@@ -418,6 +472,12 @@ class APITest(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn('buy clothes', str(res.data))
 
+        rest3 = self.client().get(
+            '/bucketlists/{}/item/{}'.format(results['id'],results2['id'])
+            )
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
+
         res3 = self.client().get(
             '/bucketlists/{}/item?q=buy clothes'.format(results['id']),
             headers=dict(Authorization="Bearer "+token),)
@@ -440,6 +500,7 @@ class APITest(unittest.TestCase):
             headers=dict(Authorization="Bearer "+" "),)
         
         self.assertIn('problem with token login again', str(res5.data))
+        
     def test_edit_item(self):
         """Test editing an item in a bucketlist."""
         self.user_registration()
@@ -447,7 +508,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"travel to the US"})
         self.assertEqual(response.status_code, 201)
@@ -487,6 +548,11 @@ class APITest(unittest.TestCase):
             data={"itemname":"buy shoes","done":True})
         self.assertEqual(res2.status_code, 401)
         self.assertIn('problem with token login again', str(res3.data))
+        rest3 = self.client().put(
+            '/bucketlists/{}/item/{}'.format(results1['id'],result2['id']),
+            data={"itemname":"buy shoes","done":True})
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
 
         results3 = self.client().get(
             '/bucketlists/{}/item/{}'.format(results1['id'], result2['id']),
@@ -505,7 +571,7 @@ class APITest(unittest.TestCase):
         token = json.loads(logged.data.decode())['token']
 
         response = self.client().post(
-            '/bucketlists/',
+            '/bucketlists',
             headers=dict(Authorization="Bearer "+token),
             data={"name":"travel to the US"})
         self.assertEqual(response.status_code, 201)
@@ -528,5 +594,11 @@ class APITest(unittest.TestCase):
             '/bucketlists/{}/item/{}',
             headers=dict(Authorization="Bearer "+token))
         self.assertEqual(result3.status_code, 404)
+        rest3 = self.client().delete(
+            '/bucketlists/{}/item/{}'.format(result['id'],result2['id']),
+            data={"itemname":"buy shoes","done":True})
+        self.assertEqual(rest3.status_code, 401)
+        self.assertIn('No token provided', str(rest3.data))
+        
 if __name__ == "__main__":
     unittest.main()
