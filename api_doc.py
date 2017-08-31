@@ -2,10 +2,11 @@ import os
 
 from flasgger import Swagger
 
-from app import create_app 
+from app import app 
+from instance.config import app_config
 
-config_name = os.getenv('APP_SETTINGS')
-app = create_app(config_name)
+app.config.from_object(app_config[os.getenv('APP_SETTINGS')])
+
 swagger = Swagger(app)
 
 @app.route('/auth/register', methods=['POST'])
